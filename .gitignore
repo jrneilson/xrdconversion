@@ -21,7 +21,9 @@ __pycache__/
 
 # PyInstaller
 *.manifest
-*.spec
+
+# Exclude spec file from gitignore since we want to include it
+# *.spec
 
 # IDE and editor files
 .vscode/
