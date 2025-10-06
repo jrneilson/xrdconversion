@@ -1,0 +1,64 @@
+# Build directories
+build/
+dist/
+*.app
+*.dmg
+
+# Virtual environments
+venv/
+test_build_env/
+env/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Data files (optional - you may want to include some as examples)
+# Uncomment these lines if you don't want to include sample data files
+# *.brml
+# *.raw
+# *.xye
+# *.metadata
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Backup files
+*~
+*.bak
+*.backup
+
+# Output files from testing
+test_output/
+output/
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
