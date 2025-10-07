@@ -4,13 +4,52 @@
 Write-Host "Building XRD Format Converter for Windows..." -ForegroundColor Green
 Write-Host "Note: No administrator privileges required" -ForegroundColor Yellow
 
-# Check if Python is available
-try {
-    $pythonVersion = python --version 2>&1
-    Write-Host "Found Python: $pythonVersion" -ForegroundColor Green
-} catch {
-    Write-Host "Error: Python is not installed or not in PATH" -ForegroundColor Red
-    Write-Host "Please install Python from python.org and add it to PATH" -ForegroundColor Yellow
+# Function to check Python version
+function Test-PythonVersion {
+    param($pythonCmd)
+    try {
+        $version = & $pythonCmd --version 2>&1
+        if ($version -match "Python (\d+)\.(\d+)") {
+            $major = [int]$matches[1]
+            $minor = [int]$matches[2]
+            if ($major -eq 3 -and $minor -ge 8) {
+                return $true
+            }
+        }
+    } catch {
+        return $false
+    }
+    return $false
+}
+
+# Find suitable Python installation
+$pythonCmd = $null
+$pythonCandidates = @("python3", "python", "py -3.11", "py -3.10", "py -3.9", "py -3.8", "py -3")
+
+Write-Host "Searching for suitable Python installation..." -ForegroundColor Yellow
+
+foreach ($candidate in $pythonCandidates) {
+    Write-Host "Trying: $candidate" -ForegroundColor Gray
+    if (Test-PythonVersion $candidate) {
+        $pythonCmd = $candidate
+        $version = & $candidate --version 2>&1
+        Write-Host "✓ Found suitable Python: $version" -ForegroundColor Green
+        Write-Host "Using command: $pythonCmd" -ForegroundColor Green
+        break
+    }
+}
+
+if (-not $pythonCmd) {
+    Write-Host "✗ Error: No suitable Python installation found" -ForegroundColor Red
+    Write-Host "Requirements: Python 3.8 or higher" -ForegroundColor Yellow
+    Write-Host "Please install Python 3.8+ from python.org and add it to PATH" -ForegroundColor Yellow
+    
+    # Show what Python versions are available
+    Write-Host "`nPython installations found:" -ForegroundColor Yellow
+    try { $ver = python --version 2>&1; Write-Host "  python: $ver" } catch { Write-Host "  python: Not found" }
+    try { $ver = python3 --version 2>&1; Write-Host "  python3: $ver" } catch { Write-Host "  python3: Not found" }
+    try { $ver = py --version 2>&1; Write-Host "  py: $ver" } catch { Write-Host "  py launcher: Not found" }
+    
     Read-Host "Press Enter to exit"
     exit 1
 }
@@ -18,7 +57,7 @@ try {
 # Create virtual environment if it doesn't exist
 if (!(Test-Path "venv")) {
     Write-Host "Creating virtual environment..." -ForegroundColor Yellow
-    python -m venv venv
+    & $pythonCmd.Split(' ') -m venv venv
 }
 
 # Activate virtual environment

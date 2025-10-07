@@ -56,6 +56,20 @@ After successful build:
 - Make sure "Add to PATH" was checked during installation
 - Restart Command Prompt/PowerShell
 
+### "Python 2.7 found" or "No module named venv" errors
+**Problem**: System has old Python 2.7 as default
+**Solution**: Install Python 3.8+ from python.org
+```cmd
+# Check your Python installations
+python --version
+python3 --version
+py --version
+py -3 --version
+
+# If you have Python 3 but it's not default, try:
+py -3 --version  # Should show Python 3.x
+```
+
 ### "Execution policy" error (PowerShell only)
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
@@ -72,6 +86,25 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 rmdir /s venv
 # Then run the build script again
 ```
+
+### Multiple Python versions
+If you have both Python 2 and Python 3 installed:
+1. **Recommended**: Use the Python Launcher
+   ```cmd
+   py -3.11 --version  # Use specific version
+   py -3 --version     # Use latest Python 3
+   ```
+
+2. **Alternative**: Install Python 3 from python.org
+   - Check "Add Python to PATH" during installation
+   - This will make `python` command point to Python 3
+
+3. **Check installation**:
+   ```cmd
+   where python
+   where python3
+   where py
+   ```
 
 ## Distribution
 

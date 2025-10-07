@@ -152,20 +152,33 @@ pyinstaller xrd_converter.spec
    chmod +x build_mac.sh
    ```
 
-2. **Python not found on Windows:**
+2. **Python 2.7 found instead of Python 3:**
+   - Problem: System has old Python 2.7 as default `python` command
+   - Solution: Install Python 3.8+ from python.org or use Python launcher:
+     ```cmd
+     py -3 --version  # Check if Python 3 is available
+     ```
+   - The build scripts now automatically detect suitable Python versions
+
+3. **Python not found on Windows:**
    - Install Python from python.org
    - Add Python to PATH during installation
    - No administrator privileges required
 
-3. **Missing Visual C++ tools on Windows:**
+4. **Missing Visual C++ tools on Windows:**
    - Install Microsoft C++ Build Tools
    - Or install Visual Studio Community
    - These are usually included with modern Python installations
 
-4. **Permission issues on Windows:**
+5. **Permission issues on Windows:**
    - The build script uses virtual environments (no admin needed)
    - If you get permission errors, ensure your user has write access to the project folder
    - Avoid running as administrator unless absolutely necessary
+
+6. **"No module named venv" error:**
+   - This indicates Python 2.7 is being used
+   - Install Python 3.8+ or use the Python launcher: `py -3`
+   - The updated build scripts handle this automatically
 
 ## Distribution
 
