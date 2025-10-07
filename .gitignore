@@ -1,8 +1,5 @@
 # Build directories
 build/
-dist/
-*.app
-*.dmg
 
 # Virtual environments
 venv/
