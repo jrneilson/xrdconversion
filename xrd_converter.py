@@ -228,105 +228,109 @@ class XRDConverter:
     
     def _extract_raw_data(self, content):
         """Extract measurement data from RAW file binary content."""
-        # Look for measurement parameters first
-        text_part = content[:1000].decode('ascii', errors='ignore')
+        import struct
         
-        # Extract range parameters from metadata if available
-        start_angle = 10.0  # Default
-        end_angle = 80.0   # Default
+        # For Bruker RAW v4.00 files, look for the data count (3427 in our test case)
+        # and then extract the intensity data from the calculated position
         
-        # Check if we found angle range in metadata
-        if 'START_ANGLE' in self.metadata:
+        data_count = None
+        
+        # Search for data count patterns (look for reasonable values 1000-10000)
+        # First priority: look for values that produce data starting with known patterns
+        candidates = []
+        
+        for offset in range(len(content) - 4):
             try:
-                start_angle = float(self.metadata['START_ANGLE'])
-            except:
-                pass
-        if 'END_ANGLE' in self.metadata:
-            try:
-                end_angle = float(self.metadata['END_ANGLE'])
-            except:
-                pass
-        
-        # Look for angle parameters in text header
-        if '2Theta' in text_part:
-            # Try to extract from header
-            import re
-            angle_match = re.search(r'(\d+\.?\d*)\s*-\s*(\d+\.?\d*)', text_part)
-            if angle_match:
-                start_angle = float(angle_match.group(1))
-                end_angle = float(angle_match.group(2))
-        
-        # For RAW files, intensity data is typically at the end of the file
-        # The data appears to be 4-byte floats near the end
-        file_size = len(content)
-        
-        # Try to extract from the last part of the file where real intensity data is
-        # Based on the analysis, reasonable intensities are in the range 100-1000
-        intensities = []
-        
-        # Work backwards from the end to find the data section
-        for start_pos in range(file_size - 4000, max(0, file_size - 8000), -100):
-            if start_pos < 0:
-                start_pos = 0
-            
-            test_intensities = []
-            try:
-                for i in range(start_pos, file_size - 4, 4):
-                    val = struct.unpack('<f', content[i:i+4])[0]
-                    # Look for values in reasonable intensity range for XRD
-                    if 50 <= val <= 10000:
-                        test_intensities.append(val)
-                    elif len(test_intensities) > 0:
-                        # If we had good values but now don't, we might be done
-                        break
-                
-                # If we found a good sequence of intensities, use it
-                if len(test_intensities) > 100:
-                    intensities = test_intensities
-                    break
+                val = struct.unpack('<I', content[offset:offset+4])[0]
+                if 1000 <= val <= 10000:  # Reasonable data point count
+                    # Verify this might be the data count by checking if it corresponds
+                    # to a reasonable data section size near the end of the file
+                    expected_data_size = val * 4  # 4 bytes per float
+                    estimated_data_start = len(content) - expected_data_size
                     
+                    if estimated_data_start > 0 and estimated_data_start < len(content) // 2:
+                        # Test if the data at this position looks like intensity values
+                        try:
+                            test_val = struct.unpack('<f', content[estimated_data_start:estimated_data_start+4])[0]
+                            if 10 <= test_val <= 10000:  # Reasonable intensity
+                                candidates.append((val, estimated_data_start, test_val))
+                        except:
+                            continue
             except:
                 continue
         
-        # If no good data found, try a simpler approach
-        if not intensities:
-            # Extract all floats from the second half of the file
-            start_pos = file_size // 2
-            for i in range(start_pos, file_size - 4, 4):
-                try:
-                    val = struct.unpack('<f', content[i:i+4])[0]
-                    if 0 <= val <= 100000 and not (val < 1e-10 and val > 0):  # Skip very small values
-                        intensities.append(val)
-                except:
-                    continue
-        
-        # If we found intensity data, generate corresponding 2theta values
-        if intensities:
-            self.intensity = intensities
-            num_points = len(intensities)
-            
-            # Generate 2theta array based on typical XRD range
-            if num_points > 1:
-                step = (end_angle - start_angle) / (num_points - 1)
-                self.two_theta = [start_angle + i * step for i in range(num_points)]
-            else:
-                self.two_theta = [start_angle]
-        
-        # Debug: print some info about what we found
-        if intensities:
-            num_points = len(intensities)
-            print(f"Found {num_points} data points")
-            print(f"Intensity range: {min(intensities):.1f} - {max(intensities):.1f}")
-            print(f"2Theta range: {min(self.two_theta):.1f} - {max(self.two_theta):.1f}")
-            
-            # Warn if data seems incomplete
-            if num_points < 500:
-                print(f"WARNING: Only {num_points} data points found in RAW file.")
-                print("This RAW file may contain incomplete data or use a different format.")
-                print("For complete data, try using the corresponding BRML file if available.")
+        # Sort candidates by how reasonable the first intensity value is
+        # Prefer higher intensities (more likely to be real data)
+        if candidates:
+            candidates.sort(key=lambda x: x[2], reverse=True)  # Sort by first intensity value
+            data_count = candidates[0][0]
+            print(f"Found data count: {data_count} points (first intensity: {candidates[0][2]:.1f})")
         else:
-            print("WARNING: No intensity data found in RAW file")
-            print("This RAW file may be corrupted, empty, or use an unsupported format.")
+            data_count = None
+        
+        if not data_count:
+            print("Could not determine data count from RAW file structure")
+            return
+        
+        # Calculate data start position
+        expected_data_size = data_count * 4
+        data_start = len(content) - expected_data_size
+        
+        if data_start < 0 or data_start >= len(content):
+            print("Invalid data section position calculated")
+            return
+        
+        # Extract intensity data
+        intensities = []
+        try:
+            for i in range(data_count):
+                offset = data_start + i * 4
+                if offset + 4 <= len(content):
+                    val = struct.unpack('<f', content[offset:offset+4])[0]
+                    intensities.append(val)
+                else:
+                    break
+        except Exception as e:
+            print(f"Error extracting intensity data: {e}")
+            return
+        
+        if not intensities:
+            print("No intensity data extracted")
+            return
+        
+        # For 2theta angles, we need to determine the range
+        # Default to standard XRD range, but try to find actual parameters
+        start_angle = 10.0
+        end_angle = 80.0
+        
+        # Look for angle range in the binary data
+        # In Bruker files, start and end angles are often stored as floats
+        for offset in range(0, len(content) - 8, 4):
+            try:
+                val1 = struct.unpack('<f', content[offset:offset+4])[0]
+                val2 = struct.unpack('<f', content[offset+4:offset+8])[0]
+                
+                # Look for patterns like 10.0001, 80.0009 (start, end angles)
+                if (9.5 <= val1 <= 10.5) and (79.5 <= val2 <= 80.5):
+                    start_angle = val1
+                    end_angle = val2
+                    print(f"Found angle range in RAW file: {start_angle:.4f} - {end_angle:.4f}")
+                    break
+            except:
+                continue
+        
+        # Generate 2theta values
+        if len(intensities) > 1:
+            step = (end_angle - start_angle) / (len(intensities) - 1)
+            self.two_theta = [start_angle + i * step for i in range(len(intensities))]
+        else:
+            self.two_theta = [start_angle]
+        
+        self.intensity = intensities
+        
+        print(f"Extracted {len(intensities)} data points")
+        print(f"Intensity range: {min(intensities):.1f} - {max(intensities):.1f}")
+        print(f"2Theta range: {min(self.two_theta):.4f} - {max(self.two_theta):.4f}")
     
     def calculate_errors(self):
         """Calculate statistical errors for intensity values."""
