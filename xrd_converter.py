@@ -103,9 +103,10 @@ class XRDConverter:
                 parts = datum.split(',')
                 if len(parts) >= 5:
                     try:
-                        # Extract angle (usually the 4th column, 0-indexed as 3)
-                        # and intensity (usually the 5th column, 0-indexed as 4)
-                        angle = float(parts[3])  # angle2 column
+                        # Extract 2theta angle (3rd column, 0-indexed as 2)
+                        # and intensity (5th column, 0-indexed as 4)
+                        # Format: time,unknown,2theta,theta,intensity
+                        angle = float(parts[2])  # 2theta column (correct for XRD)
                         intensity = float(parts[4])  # intensity column
                         angles.append(angle)
                         intensities.append(intensity)
@@ -313,9 +314,19 @@ class XRDConverter:
         
         # Debug: print some info about what we found
         if intensities:
-            print(f"Found {len(intensities)} data points")
+            num_points = len(intensities)
+            print(f"Found {num_points} data points")
             print(f"Intensity range: {min(intensities):.1f} - {max(intensities):.1f}")
             print(f"2Theta range: {min(self.two_theta):.1f} - {max(self.two_theta):.1f}")
+            
+            # Warn if data seems incomplete
+            if num_points < 500:
+                print(f"WARNING: Only {num_points} data points found in RAW file.")
+                print("This RAW file may contain incomplete data or use a different format.")
+                print("For complete data, try using the corresponding BRML file if available.")
+        else:
+            print("WARNING: No intensity data found in RAW file")
+            print("This RAW file may be corrupted, empty, or use an unsupported format.")
     
     def calculate_errors(self):
         """Calculate statistical errors for intensity values."""
