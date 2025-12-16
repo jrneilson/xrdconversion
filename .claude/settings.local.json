@@ -4,7 +4,16 @@
       "Bash(python3:*)",
       "Bash(pkill:*)",
       "Bash(rm:*)",
-      "Bash(unzip:*)"
+      "Bash(unzip:*)",
+      "Bash(chmod:*)",
+      "Bash(./build_mac.sh)",
+      "Bash(./build_windows.sh:*)",
+      "Bash(./dist/XRD_Format_Converter \"testdata/Needle-Like/NS-01-24-c_SrZrS3_Heated_cup_100-1000-400C_20C-min_11-14-25.brml\" --verbose)",
+      "Bash(./dist/XRD_Format_Converter \"testdata/BaZrS3.brml\")",
+      "Bash(ls:*)",
+      "Bash(pwsh ./build_windows.ps1)",
+      "Bash(source:*)",
+      "Bash(pyinstaller:*)"
     ],
     "deny": [],
     "ask": []

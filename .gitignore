@@ -58,6 +58,7 @@ Thumbs.db
 # Output files from testing
 test_output/
 output/
+testdata/
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
