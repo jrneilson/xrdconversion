@@ -79,6 +79,66 @@ class XRDConverter:
         
         return True
     
+    def read_xrdml_file(self, filepath):
+        """Read and parse XRDML file (XML format)."""
+        try:
+            tree = ET.parse(filepath)
+            root = tree.getroot()
+            
+            # XRDML namespace
+            ns = {'xrdml': 'http://www.xrdml.com/XRDMeasurement/1.5'}
+            
+            # Extract metadata from comments and measurement info
+            self._extract_xrdml_metadata(root, ns)
+            
+            # Find the scan data
+            scan = root.find('.//xrdml:scan', ns)
+            if scan is None:
+                print("No scan data found in XRDML file")
+                return False
+            
+            # Extract data points
+            data_points = scan.find('xrdml:dataPoints', ns)
+            if data_points is None:
+                print("No data points found in XRDML scan")
+                return False
+            
+            # Extract 2-theta range
+            positions = data_points.find('xrdml:positions[@axis="2Theta"]', ns)
+            if positions is None:
+                print("No 2Theta positions found")
+                return False
+            
+            start_pos = float(positions.find('xrdml:startPosition', ns).text)
+            end_pos = float(positions.find('xrdml:endPosition', ns).text)
+            
+            # Extract intensities
+            intensities_elem = data_points.find('xrdml:intensities', ns)
+            if intensities_elem is None:
+                print("No intensities found")
+                return False
+            
+            intensity_values = [int(x) for x in intensities_elem.text.split()]
+            
+            # Calculate 2-theta values
+            num_points = len(intensity_values)
+            two_theta_values = np.linspace(start_pos, end_pos, num_points)
+            
+            # Store data
+            self.two_theta = two_theta_values.tolist()
+            self.intensity = intensity_values
+            self.error = [np.sqrt(max(1, i)) for i in intensity_values]  # Poisson statistics
+            self.is_multi_dataset = False  # XRDML typically contains single scans
+            
+            print(f"Successfully read XRDML file with {len(self.intensity)} data points")
+            print(f"2θ range: {start_pos:.3f}° to {end_pos:.3f}°")
+            
+        except Exception as e:
+            print(f"Error reading XRDML file: {e}")
+            return False
+        
+        return True
+    
     def _extract_xml_metadata(self, root):
         """Extract metadata from XML structure."""
         # Common metadata fields
@@ -97,6 +157,54 @@ class XRDConverter:
             for attr, value in elem.attrib.items():
                 if attr in metadata_fields:
                     self.metadata[attr] = value
+    
+    def _extract_xrdml_metadata(self, root, ns):
+        """Extract metadata from XRDML structure."""
+        # Extract comment entries
+        comments = root.findall('.//xrdml:comment/xrdml:entry', ns)
+        for i, comment in enumerate(comments):
+            self.metadata[f'COMMENT_{i+1}'] = comment.text.strip()
+        
+        # Extract wavelength information
+        wavelength = root.find('.//xrdml:usedWavelength/xrdml:kAlpha1', ns)
+        if wavelength is not None:
+            self.metadata['LAMBDA'] = f"{wavelength.text} {wavelength.get('unit', 'Angstrom')}"
+        
+        # Extract X-ray tube information
+        tube_voltage = root.find('.//xrdml:xRayTube/xrdml:tension', ns)
+        if tube_voltage is not None:
+            self.metadata['VOLTAGE'] = f"{tube_voltage.text} {tube_voltage.get('unit', 'kV')}"
+        
+        tube_current = root.find('.//xrdml:xRayTube/xrdml:current', ns)
+        if tube_current is not None:
+            self.metadata['CURRENT'] = f"{tube_current.text} {tube_current.get('unit', 'mA')}"
+        
+        anode_material = root.find('.//xrdml:xRayTube/xrdml:anodeMaterial', ns)
+        if anode_material is not None:
+            self.metadata['ANODE'] = anode_material.text.strip()
+        
+        # Extract author information
+        author = root.find('.//xrdml:author/xrdml:name', ns)
+        if author is not None:
+            self.metadata['USER'] = author.text.strip()
+        
+        # Extract software information
+        software = root.find('.//xrdml:source/xrdml:applicationSoftware', ns)
+        if software is not None:
+            version = software.get('version', '')
+            self.metadata['CREATOR'] = f"{software.text} {version}".strip()
+        
+        # Extract timestamp
+        timestamp = root.find('.//xrdml:startTimeStamp', ns)
+        if timestamp is not None:
+            self.metadata['TIMESTAMP'] = timestamp.text.strip()
+        
+        # Extract temperature if available
+        temp_values = root.find('.//xrdml:nonAmbientValues', ns)
+        if temp_values is not None:
+            temp_unit = root.find('.//xrdml:nonAmbientPoints', ns)
+            unit = temp_unit.get('unit', 'K') if temp_unit is not None else 'K'
+            self.metadata['TEMPERATURE'] = f"{temp_values.text.strip()} {unit}"
     
     def _detect_multi_dataset(self, zip_ref, xml_files):
         """Detect if this BRML file contains multiple datasets (temperature series)."""
@@ -754,8 +862,11 @@ class XRDConverter:
             success = self.read_brml_file(input_path)
         elif input_path.suffix.lower() == '.raw':
             success = self.read_raw_file(input_path)
+        elif input_path.suffix.lower() == '.xrdml':
+            success = self.read_xrdml_file(input_path)
         else:
             print(f"Unsupported file type: {input_path.suffix}")
+            print("Supported formats: .brml, .raw, .xrdml")
             return False
         
         if not success:

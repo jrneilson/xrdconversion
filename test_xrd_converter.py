@@ -93,6 +93,21 @@ class TestXRDConverter(unittest.TestCase):
                     'intensity': 72.000000,
                     'error': 8.485281
                 }
+            },
+            'CD_127_Fe14Ir2': {
+                'data_points': 8845,
+                'two_theta_range': (5.012, 119.984),
+                'intensity_range': (261.000, 6821.000),
+                'xrdml_first_point': {
+                    'two_theta': 5.012000,
+                    'intensity': 1570.000000,
+                    'error': 39.623226
+                },
+                'xrdml_last_point': {
+                    'two_theta': 119.984000,
+                    'intensity': 322.000000,
+                    'error': 17.944358
+                }
             }
         }
     
@@ -134,15 +149,25 @@ class TestXRDConverter(unittest.TestCase):
         """Test RAW conversion for SbI3 sample"""
         self._test_conversion('SbI3', 'raw')
     
+    def test_xrdml_conversion_cd_127_fe14ir2(self):
+        """Test XRDML conversion for CD_127_Fe14Ir2 sample"""
+        self._test_conversion('CD_127_Fe14Ir2', 'xrdml')
+    
     def _test_conversion(self, sample_name, file_format):
         """Helper method to test file conversion"""
-        # Setup file paths
-        input_file = self.test_data_dir / f"{sample_name}.{file_format}"
+        # Setup file paths - handle XRDML case sensitivity
+        if file_format == 'xrdml' and sample_name == 'CD_127_Fe14Ir2':
+            input_file = self.test_data_dir / f"{sample_name}.XRDML"
+        else:
+            input_file = self.test_data_dir / f"{sample_name}.{file_format}"
         output_xye = Path(self.temp_dir) / f"{sample_name}.xye"
         output_metadata = Path(self.temp_dir) / f"{sample_name}.metadata"
         
         # Copy input file to temp directory
-        temp_input = Path(self.temp_dir) / f"{sample_name}.{file_format}"
+        if file_format == 'xrdml' and sample_name == 'CD_127_Fe14Ir2':
+            temp_input = Path(self.temp_dir) / f"{sample_name}.XRDML"
+        else:
+            temp_input = Path(self.temp_dir) / f"{sample_name}.{file_format}"
         shutil.copy2(input_file, temp_input)
         
         # Perform conversion
@@ -179,6 +204,9 @@ class TestXRDConverter(unittest.TestCase):
         if file_format == 'brml':
             first_expected = expected['brml_first_point']
             last_expected = expected['brml_last_point']
+        elif file_format == 'xrdml':
+            first_expected = expected['xrdml_first_point']
+            last_expected = expected['xrdml_last_point']
         else:  # raw
             first_expected = expected['raw_first_point']
             last_expected = expected['raw_last_point']
@@ -342,7 +370,7 @@ class TestXRDConverterIntegration(unittest.TestCase):
     
     def test_batch_conversion(self):
         """Test converting multiple files at once"""
-        test_files = ['BaZrS3.brml', 'BaZrS3.raw', 'SbI3.brml', 'SbI3.raw']
+        test_files = ['BaZrS3.brml', 'BaZrS3.raw', 'SbI3.brml', 'SbI3.raw', 'CD_127_Fe14Ir2.XRDML']
         
         # Copy test files to temp directory
         for filename in test_files:
@@ -364,7 +392,8 @@ class TestXRDConverterIntegration(unittest.TestCase):
         # Check that all output files were created
         expected_outputs = [
             'BaZrS3.xye', 'BaZrS3.metadata',
-            'SbI3.xye', 'SbI3.metadata'
+            'SbI3.xye', 'SbI3.metadata',
+            'CD_127_Fe14Ir2.xye', 'CD_127_Fe14Ir2.metadata'
         ]
         
         for output_file in expected_outputs:

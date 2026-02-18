@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 XRD Format Converter GUI
-A cross-platform GUI application for converting BRML/RAW files to XYE format.
+A cross-platform GUI application for converting BRML/RAW/XRDML files to XYE format.
 Supports drag-and-drop and file selection dialogs.
 """
 
@@ -200,7 +200,7 @@ class XRDConverterGUI:
             
             if os.path.isfile(file_path):
                 ext = os.path.splitext(file_path)[1].lower()
-                if ext in ['.brml', '.raw']:
+                if ext in ['.brml', '.raw', '.xrdml']:
                     valid_files.append(file_path)
                 else:
                     self.log(f"Skipped {os.path.basename(file_path)}: Unsupported format")
@@ -211,14 +211,15 @@ class XRDConverterGUI:
             self.add_files(valid_files)
         else:
             messagebox.showwarning("No Valid Files", 
-                                 "No valid BRML or RAW files were dropped.")
+                                 "No valid BRML, RAW, or XRDML files were dropped.")
     
     def select_files(self):
         """Open file selection dialog."""
         filetypes = [
-            ("XRD files", "*.brml *.raw"),
+            ("XRD files", "*.brml *.raw *.xrdml *.XRDML"),
             ("BRML files", "*.brml"),
             ("RAW files", "*.raw"),
+            ("XRDML files", "*.xrdml *.XRDML"),
             ("All files", "*.*")
         ]
         
